@@ -32,7 +32,7 @@ static ngx_conf_enum_t  ngx_debug_points[] = {
 };
 
 
-static ngx_command_t  ngx_core_commands[] = {
+static ngx_command_t  ngx_core_commands[] = { //静态初始化core模块的命令
 
     { ngx_string("daemon"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_FLAG,
@@ -161,14 +161,14 @@ static ngx_command_t  ngx_core_commands[] = {
 };
 
 
-static ngx_core_module_t  ngx_core_module_ctx = {
+static ngx_core_module_t  ngx_core_module_ctx = { //定义ngx_core_module模块上下文,改方式属于静态初始化
     ngx_string("core"),
     ngx_core_module_create_conf,
     ngx_core_module_init_conf
 };
 
 
-ngx_module_t  ngx_core_module = {
+ngx_module_t  ngx_core_module = {  //定义ngx_core_module模块,也是静态初始化
     NGX_MODULE_V1,
     &ngx_core_module_ctx,                  /* module context */
     ngx_core_commands,                     /* module directives */

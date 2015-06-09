@@ -136,10 +136,10 @@ struct ngx_module_s {
 };
 
 
-typedef struct {
-    ngx_str_t             name;
-    void               *(*create_conf)(ngx_cycle_t *cycle);
-    char               *(*init_conf)(ngx_cycle_t *cycle, void *conf);
+typedef struct {  //定义core模块上下文类型
+    ngx_str_t             name;   //模块名，即ngx_core_module_ctx结构体对象的ngx_string("core")
+    void               *(*create_conf)(ngx_cycle_t *cycle);   //创建配置的callback
+    char               *(*init_conf)(ngx_cycle_t *cycle, void *conf); //初始化配置的callback
 } ngx_core_module_t;
 
 

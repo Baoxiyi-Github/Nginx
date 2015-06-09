@@ -48,6 +48,7 @@ ngx_destroy_pool(ngx_pool_t *pool)
     ngx_pool_large_t    *l;
     ngx_pool_cleanup_t  *c;
 
+    //调用 cleanup 中的 handler 函数，清理特定资源
     for (c = pool->cleanup; c; c = c->next) {
         if (c->handler) {
             ngx_log_debug1(NGX_LOG_DEBUG_ALLOC, pool->log, 0,
@@ -56,6 +57,7 @@ ngx_destroy_pool(ngx_pool_t *pool)
         }
     }
 
+    //释放 large 数据块的内存
     for (l = pool->large; l; l = l->next) {
 
         ngx_log_debug1(NGX_LOG_DEBUG_ALLOC, pool->log, 0, "free: %p", l->alloc);
@@ -82,7 +84,7 @@ ngx_destroy_pool(ngx_pool_t *pool)
     }
 
 #endif
-
+    //释放整个 pool
     for (p = pool, n = pool->d.next; /* void */; p = n, n = n->d.next) {
         ngx_free(p);
 
@@ -99,12 +101,19 @@ ngx_reset_pool(ngx_pool_t *pool)
     ngx_pool_t        *p;
     ngx_pool_large_t  *l;
 
+    //释放large数据块的内存
     for (l = pool->large; l; l = l->next) {
         if (l->alloc) {
             ngx_free(l->alloc);
         }
     }
 
+    // 将 pool 直接下属 large 设为 NULL 即可，无需再上面的 for 循环中每次都进行设置
+    //     pool->large = NULL;   ???
+    
+   
+       
+    //重置指针位置，让 pool 中的内存可用
     for (p = pool; p; p = p->d.next) {
         p->d.last = (u_char *) p + sizeof(ngx_pool_t);
         p->d.failed = 0;
@@ -122,13 +131,16 @@ ngx_palloc(ngx_pool_t *pool, size_t size)
     u_char      *m;
     ngx_pool_t  *p;
 
+    //判断size是否大于pool最大可用内存大小
     if (size <= pool->max) {
 
         p = pool->current;
 
         do {
+            //将m对齐到内存对齐的位置
             m = ngx_align_ptr(p->d.last, NGX_ALIGNMENT);
 
+            //判断pool中剩余的内存是否足够使用
             if ((size_t) (p->d.end - m) >= size) {
                 p->d.last = m + size;
 
@@ -183,15 +195,18 @@ ngx_palloc_block(ngx_pool_t *pool, size_t size)
     size_t       psize;
     ngx_pool_t  *p, *new;
 
+    //先前的整个pool的大小
     psize = (size_t) (pool->d.end - (u_char *) pool);
 
+    //在对齐的前提下，新分配一块内存
     m = ngx_memalign(NGX_POOL_ALIGNMENT, psize, pool->log);
     if (m == NULL) {
         return NULL;
     }
 
     new = (ngx_pool_t *) m;
-
+    
+    //对新分配的内存赋初始值
     new->d.end = m + psize;
     new->d.next = NULL;
     new->d.failed = 0;
@@ -200,14 +215,17 @@ ngx_palloc_block(ngx_pool_t *pool, size_t size)
     m = ngx_align_ptr(m, NGX_ALIGNMENT);
     new->d.last = m + size;
 
+    //判断当前pool分配内存的失败次数，即：不能复用当前pool的次数，如果大于4次，就放弃在此pool上重新分配内存，以提高效率.
     for (p = pool->current; p->d.next; p = p->d.next) {
         if (p->d.failed++ > 4) {
             pool->current = p->d.next;
         }
     }
 
+    //让旧指针数据区的next指向新分配的pool
     p->d.next = new;
-
+    
+    //更新current指针???
     return m;
 }
 
@@ -219,30 +237,37 @@ ngx_palloc_large(ngx_pool_t *pool, size_t size)
     ngx_uint_t         n;
     ngx_pool_large_t  *large;
 
+    //重新申请一块大小为size的内存
+    //注意:此处不使用ngx_memalign的原因是，新分配的内存较大，对其没有太大的必要，而且后面提供里ngx_memalign函数，专门用户分配的内存
     p = ngx_alloc(size, pool->log);
     if (p == NULL) {
         return NULL;
     }
 
     n = 0;
-
+    
+    //查找可复用的large指针
     for (large = pool->large; large; large = large->next) {
+        //判断当前的large指针是否指向真正的内存,否则直接拿来用，ngx_free可让该指针为NULL
         if (large->alloc == NULL) {
             large->alloc = p;
             return p;
         }
 
+        //如果当前large后串的large内存块数目大于3（不等于3）则直接去下一步分配新内存，不用查找拉.
         if (n++ > 3) {
             break;
         }
     }
 
+    //为ngx_pool_large_t分配一块内存
     large = ngx_palloc(pool, sizeof(ngx_pool_large_t));
     if (large == NULL) {
         ngx_free(p);
         return NULL;
     }
 
+    //将新分配的large串到链表后面
     large->alloc = p;
     large->next = pool->large;
     pool->large = large;
@@ -315,12 +340,14 @@ ngx_pool_cleanup_add(ngx_pool_t *p, size_t size)
 {
     ngx_pool_cleanup_t  *c;
 
+    //首先申请sizeof(ngx_pool_cleanup_t)大小的内存作为header信息
     c = ngx_palloc(p, sizeof(ngx_pool_cleanup_t));
     if (c == NULL) {
         return NULL;
     }
 
     if (size) {
+        //cleanup有内存大小的话，分配size大小的内存空间
         c->data = ngx_palloc(p, size);
         if (c->data == NULL) {
             return NULL;
@@ -330,9 +357,11 @@ ngx_pool_cleanup_add(ngx_pool_t *p, size_t size)
         c->data = NULL;
     }
 
+    //对cleanup数据结构其他项进行赋值
     c->handler = NULL;
     c->next = p->cleanup;
 
+    //将cleanup数据串连接到链表里面
     p->cleanup = c;
 
     ngx_log_debug1(NGX_LOG_DEBUG_ALLOC, p->log, 0, "add cleanup: %p", c);
