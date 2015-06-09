@@ -351,6 +351,7 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
 }
 
 
+//worker进程的管道可读事件捕捉函数是ngx_channel_handler(ngx_event_t *ev)，在这个函数中，会读取message，然后解析，并根据不同给的命令做不同的处理
 static void
 ngx_start_worker_processes(ngx_cycle_t *cycle, ngx_int_t n, ngx_int_t type)
 {
@@ -360,18 +361,27 @@ ngx_start_worker_processes(ngx_cycle_t *cycle, ngx_int_t n, ngx_int_t type)
     ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "start worker processes");
 
     ngx_memzero(&ch, sizeof(ngx_channel_t));
-
+    
+    //传递给其他worker子进程的命令：打开通信管道
     ch.command = NGX_CMD_OPEN_CHANNEL;
 
+    //创建n个worker进程
     for (i = 0; i < n; i++) {
 
+        //创建worker子进程并初始化相关资源和属性
         ngx_spawn_process(cycle, ngx_worker_process_cycle,
                           (void *) (intptr_t) i, "worker process", type);
 
+        //master父进程向所有已经创建的worker子进程（不包括本子进程）广播消息
+        //包括当前worker子进程的进程id、在进程表中的位置和管道句柄，这些worker子进程收到消息后，
+        //会更新这些消息到自己进程空间的进程表，以此实现两个worke子进程之间的通信。
+        //        */
         ch.pid = ngx_processes[ngx_process_slot].pid;
         ch.slot = ngx_process_slot;
         ch.fd = ngx_processes[ngx_process_slot].channel[0];
 
+
+        //遍历所有worker进程，跳过自己和异常的worker，把消息发送给各个worker进程
         ngx_pass_open_channel(cycle, &ch);
     }
 }
@@ -733,6 +743,16 @@ ngx_master_process_exit(ngx_cycle_t *cycle)
 }
 
 
+
+
+//  1.调用ngx_worker_process_init初始化；
+//  2.设置ngx_process=NGX_PROCESS_WORKER
+//  3.全局性的设置，包括执行环境、优先级、限制、setgid、setuid、信号初始化
+//  4.调用所有模块的init_process钩子
+//  5. 关闭不使用的管道句柄，关闭当前的worker子进程的channel[0]句柄和继承来的其他进程的channel[1]句柄。使用其他进程的channel[0]句柄发送消息，使用本进程的channel[1]句柄监听事件。
+//  6.进行线程相关的操作。（如果有线程模式）
+//  7.主循环处理各种状态，类似master进程的主循环。
+
 static void
 ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 {
@@ -741,8 +761,10 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
     ngx_uint_t         i;
     ngx_connection_t  *c;
 
+    //设置ngx_process=NGX_PROCESS_WORKER
     ngx_process = NGX_PROCESS_WORKER;
 
+    //调用ngx_worker_process_init初始化
     ngx_worker_process_init(cycle, worker);
 
     ngx_setproctitle("worker process");
@@ -795,7 +817,7 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 
     for ( ;; ) {
 
-        if (ngx_exiting) {
+        if (ngx_exiting) {//退出状态，关闭所有连接
 
             c = cycle->connections;
 
@@ -821,9 +843,9 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 
         ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "worker cycle");
 
-        ngx_process_events_and_timers(cycle);
+        ngx_process_events_and_timers(cycle);//处理事件和计时
 
-        if (ngx_terminate) {
+        if (ngx_terminate) {//收到NGX_CMD_TERMINATE命令，清理进城后退出，并调用所有模块的exit_process钩子。
             ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "exiting");
 
             ngx_worker_process_exit(cycle);
@@ -836,12 +858,13 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
             ngx_setproctitle("worker process is shutting down");
 
             if (!ngx_exiting) {
+                //关闭监听socket，并设置退出状态
                 ngx_close_listening_sockets(cycle);
                 ngx_exiting = 1;
             }
         }
 
-        if (ngx_reopen) {
+        if (ngx_reopen) {//重新打开log
             ngx_reopen = 0;
             ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "reopening logs");
             ngx_reopen_files(cycle, -1);

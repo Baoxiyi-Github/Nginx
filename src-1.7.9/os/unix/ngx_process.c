@@ -84,24 +84,36 @@ ngx_signal_t  signals[] = {
 };
 
 
+//proc是子进程的执行函数
+//data是其参数
+//name是进程名
+//
+//函数的任务：
+//  1.有一个ngx_processes全局数组，包含了所有的子进程，这里会fork出子进程并放入相应的位置，并设置这个进程的相关属性。
+//  2.创建socketpair，并设置相关属性
+//  3.子进程中执行传递进来的函数。
 ngx_pid_t
 ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
     char *name, ngx_int_t respawn)
 {
     u_long     on;
     ngx_pid_t  pid;
-    ngx_int_t  s;
+    ngx_int_t  s; ///fork的子进程在ngx_processes中的位置
 
+    //如果传递进来的respawn>0，说明是要替换进程ngx_processes[respawn]，可安全重用该进程表项
     if (respawn >= 0) {
         s = respawn;
 
     } else {
+
+        //遍历进程表，找到空闲的slot
         for (s = 0; s < ngx_last_process; s++) {
             if (ngx_processes[s].pid == -1) {
                 break;
             }
         }
 
+        //达到最大进程限制报错
         if (s == NGX_MAX_PROCESSES) {
             ngx_log_error(NGX_LOG_ALERT, cycle->log, 0,
                           "no more than %d processes can be spawned",
@@ -111,10 +123,12 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
     }
 
 
-    if (respawn != NGX_PROCESS_DETACHED) {
+    //创建一对socketpair，并设置相关属性
+    if (respawn != NGX_PROCESS_DETACHED) { //NGX_PROCESS_DETACHED是热代码替换
 
         /* Solaris 9 still has no AF_LOCAL */
 
+        //建立socketpair
         if (socketpair(AF_UNIX, SOCK_STREAM, 0, ngx_processes[s].channel) == -1)
         {
             ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
@@ -127,6 +141,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
                        ngx_processes[s].channel[0],
                        ngx_processes[s].channel[1]);
 
+        //设置非阻塞模式
         if (ngx_nonblocking(ngx_processes[s].channel[0]) == -1) {
             ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
                           ngx_nonblocking_n " failed while spawning \"%s\"",
@@ -143,6 +158,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
             return NGX_INVALID_PID;
         }
 
+        //打开异步模式
         on = 1;
         if (ioctl(ngx_processes[s].channel[0], FIOASYNC, &on) == -1) {
             ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
@@ -151,6 +167,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
             return NGX_INVALID_PID;
         }
 
+        ///设置异步io所有者
         if (fcntl(ngx_processes[s].channel[0], F_SETOWN, ngx_pid) == -1) {
             ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
                           "fcntl(F_SETOWN) failed while spawning \"%s\"", name);
@@ -158,6 +175,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
             return NGX_INVALID_PID;
         }
 
+        //当exec后关闭句柄
         if (fcntl(ngx_processes[s].channel[0], F_SETFD, FD_CLOEXEC) == -1) {
             ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
                           "fcntl(FD_CLOEXEC) failed while spawning \"%s\"",
@@ -174,6 +192,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
             return NGX_INVALID_PID;
         }
 
+        //设置当前子进程的句柄
         ngx_channel = ngx_processes[s].channel[1];
 
     } else {
@@ -181,7 +200,11 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
         ngx_processes[s].channel[1] = -1;
     }
 
+    //fork子进程，并设置进程相关参数
+
+    //设置进程在进程表中的slot
     ngx_process_slot = s;
+
 
 
     pid = fork();
@@ -195,6 +218,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
         return NGX_INVALID_PID;
 
     case 0:
+        //子进程，执行传递进来的子进程函数
         ngx_pid = ngx_getpid();
         proc(cycle, data);
         break;
@@ -208,10 +232,11 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
     ngx_processes[s].pid = pid;
     ngx_processes[s].exited = 0;
 
-    if (respawn >= 0) {
+    if (respawn >= 0) {//使用原来的子进程即可
         return pid;
     }
 
+    //初始化进程结构
     ngx_processes[s].proc = proc;
     ngx_processes[s].data = data;
     ngx_processes[s].name = name;

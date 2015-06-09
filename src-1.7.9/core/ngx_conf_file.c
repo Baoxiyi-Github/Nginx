@@ -168,7 +168,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
 
 
     for ( ;; ) {
-        rc = ngx_conf_read_token(cf);
+        rc = ngx_conf_read_token(cf);//每次都调用ngx_conf_read_token取得一个配置指令，然后调用ngx_conf_handler来处理这条指令
 
         /*
          * ngx_conf_read_token() may return
@@ -244,7 +244,16 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
         }
 
 
-        rc = ngx_conf_handler(cf, rc);
+        //每次会遍历所有模块的指令集，查找这条配置指令并分析其合法性，如果正确则创建配置结构并把指针加入到cycle.conf_ctx中
+        //
+        //遍历指令集的过程首先是遍历所有的核心类模块，若是 event类的指令，则会遍历到ngx_events_module，这个模块是属于核心类的，
+        //其钩子set又会嵌套调用ngx_conf_parse去遍历所有的event类模块，同样的，若是http类指令，则会遍历到ngx_http_module，该模块
+        //的钩子set进一步遍历所有的http类模块，mail类指令会遍历到ngx_mail_module，该模块的钩子进一步遍历到所有的mail类模块。要
+        //特别注意的是：这三个遍历过程中会在适当的时机调用event类模块、http类模块和mail类模块的创建配置和初始化配置的钩子。
+        //从这里可以看出，event、http、mail三类模块的钩子是配置中的指令驱动的
+        //
+
+        rc = ngx_conf_handler(cf, rc);//处理刚刚读到的指令
 
         if (rc == NGX_ERROR) {
             goto failed;
