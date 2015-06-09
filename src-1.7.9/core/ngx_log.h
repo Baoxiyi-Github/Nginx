@@ -12,7 +12,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 
-
+//在正式使用中，建议配置在3级以下，因为级别数字越大，产生的告警日志越多。日志越多，对于调试分析非常有用，但在正式使用过程中，日志数量产生太多，会写磁盘IO，对性能会造成极大的影响
 #define NGX_LOG_STDERR            0
 #define NGX_LOG_EMERG             1
 #define NGX_LOG_ALERT             2
@@ -49,7 +49,7 @@ typedef void (*ngx_log_writer_pt) (ngx_log_t *log, ngx_uint_t level,
 
 struct ngx_log_s {
     ngx_uint_t           log_level;
-    ngx_open_file_t     *file;
+    ngx_open_file_t     *file;//File是log日志的记录文件标识符，在nginx中文件描述符同样进行了特定的封装
 
     ngx_atomic_uint_t    connection;
 

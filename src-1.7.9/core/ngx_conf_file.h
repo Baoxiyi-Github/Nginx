@@ -88,8 +88,8 @@ struct ngx_command_s {
 
 
 struct ngx_open_file_s {
-    ngx_fd_t              fd;
-    ngx_str_t             name;
+    ngx_fd_t              fd;   //标准IO文件描述符
+    ngx_str_t             name; //文件名称
 
     void                (*flush)(ngx_open_file_t *file, ngx_log_t *log);
     void                 *data;

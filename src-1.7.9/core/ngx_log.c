@@ -289,10 +289,10 @@ ngx_log_init(u_char *prefix)
     u_char  *p, *name;
     size_t   nlen, plen;
 
-    ngx_log.file = &ngx_log_file;
+    ngx_log.file = &ngx_log_file;//此处初始化log中的file字段存储全局变量ngx_log_file的地址
     ngx_log.log_level = NGX_LOG_NOTICE;
 
-    name = (u_char *) NGX_ERROR_LOG_PATH;
+    name = (u_char *) NGX_ERROR_LOG_PATH;//这里名字初始化为error日志文件路径，默认定义为（objs/ngx_auto_config.h.
 
     /*
      * we use ngx_strlen() here since BCC warns about
@@ -313,7 +313,7 @@ ngx_log_init(u_char *prefix)
 #else
     if (name[0] != '/') {
 #endif
-
+        }
         if (prefix) {
             plen = ngx_strlen(prefix);
 
@@ -325,7 +325,7 @@ ngx_log_init(u_char *prefix)
             plen = 0;
 #endif
         }
-
+        //主要分配内存，来存储log文件名，prefix为指定的路径前缀。初始化log文件的路径名称后，后续就要打开log文件，进行必要的初始化操作
         if (plen) {
             name = malloc(plen + nlen + 2);
             if (name == NULL) {
@@ -347,7 +347,11 @@ ngx_log_init(u_char *prefix)
     ngx_log_file.fd = ngx_open_file(name, NGX_FILE_APPEND,
                                     NGX_FILE_CREATE_OR_OPEN,
                                     NGX_FILE_DEFAULT_ACCESS);
-
+        /*
+         *#define ngx_open_file(name, mode, create, access)                            \
+         *open((const char *) name, mode|create, access)
+         */
+//可以看到文件是以只写方式打开的，并执行追加的方式，如果文件不存在，则先创建该文件，并赋予文件0644的权限，创建者和超级用户才具有读写权限，其他用户和组用户只有读权限。这里要特别注意这一点，普通用户是没办法改写nginx的日志的，另外文件是初始化时候打开的初始化的，不要试图在运行过程中以超级用户权限删除文件，认为还会继续有日志文件产生记录。这个和apache是类似的
     if (ngx_log_file.fd == NGX_INVALID_FILE) {
         ngx_log_stderr(ngx_errno,
                        "[alert] could not open error log file: "
@@ -358,13 +362,13 @@ ngx_log_init(u_char *prefix)
                        ngx_open_file_n " \"%s\" failed", name);
 #endif
 
-        ngx_log_file.fd = ngx_stderr;
+        ngx_log_file.fd = ngx_stderr;//如果文件创建出错，将标准错误赋给log文件描述符
     }
 
     if (p) {
         ngx_free(p);
     }
-
+//之前处理文件名这一串，都是为了打开文件做准备的，完毕后，它的使命也结束了，释放存储的内存。并返回，nginx的log便初始化完毕.
     return &ngx_log;
 }
 
