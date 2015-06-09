@@ -1206,7 +1206,7 @@ next:
         ngx_modules[i]->index = ngx_max_module++;
     }
 
-    cycle = ngx_init_cycle(&init_cycle);
+    cycle = ngx_init_cycle(&init_cycle);//nginx启动比较核心的一部分功能， 很多的变量都在这个过程进行初始化
     if (cycle == NULL) {
         if (ngx_test_config) {
             ngx_log_stderr(0, "configuration file %s test failed",
