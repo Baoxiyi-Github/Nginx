@@ -11,11 +11,12 @@
 #include <ngx_channel.h>
 
 
+//Nginx初始化阶段通过ngx_init_signals函数来初始化信号操作
 typedef struct {
-    int     signo;
-    char   *signame;
-    char   *name;
-    void  (*handler)(int signo);
+    int     signo;      //信号值
+    char   *signame;    //信号值对应的字面名
+    char   *name;       //nginx下的别名
+    void  (*handler)(int signo);//信号处理函数
 } ngx_signal_t;
 
 
@@ -35,7 +36,7 @@ ngx_socket_t     ngx_channel;
 ngx_int_t        ngx_last_process;
 ngx_process_t    ngx_processes[NGX_MAX_PROCESSES];
 
-
+//signals数组
 ngx_signal_t  signals[] = {
     { ngx_signal_value(NGX_RECONFIGURE_SIGNAL),
       "SIG" ngx_value(NGX_RECONFIGURE_SIGNAL),
@@ -328,6 +329,7 @@ ngx_signal_handler(int signo)
 
     action = "";
 
+    //ngx_process表示当前进程的类型，在信号处理时，对于不同的进程，处理是不一样的
     switch (ngx_process) {
 
     case NGX_PROCESS_MASTER:
@@ -351,7 +353,7 @@ ngx_signal_handler(int signo)
                 action = ", stop accepting connections";
             }
             break;
-
+        //当前进程中的全局变量ngx_reconfigure被置成了1，这样在ngx_master_process_cycle的for循环中检测到ngx_reconfigure ==1，就开始做重加载配置的操作了
         case ngx_signal_value(NGX_RECONFIGURE_SIGNAL):
             ngx_reconfigure = 1;
             action = ", reconfiguring";

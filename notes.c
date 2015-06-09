@@ -1,4 +1,8 @@
 
+//nginx的启动过程代码主要分布在src/core以及src/os/unix目录下。
+//启动流程的函数调用序列：
+//main(src/core/nginx.c)→ngx_init_cycle(src/core/ngx_cycle.c)→ngx_master_process_cycle(src/os/)。
+//nginx的启动过程就是围绕着这三个函数进行的
 int ngx_cdecl
 main(int argc, char *const *argv)
 {
@@ -1201,7 +1205,9 @@ next:
             return NGX_OK;
         }
     }
+    //对所有模块进行计数
     ngx_max_module = 0;//记录模块数，每个模块用唯一的index区别
+    //初始化每个module的index，并计算ngx_max_module
     for (i = 0; ngx_modules[i]; i++) {
         ngx_modules[i]->index = ngx_max_module++;
     }
@@ -1400,7 +1406,7 @@ next:
             ngx_destroy_pool(pool);
             return NULL;
         }
-    
+
         //简单初始化，如记录pool指针、log指针
         cycle->pool = pool;
         cycle->log = log;
@@ -1461,7 +1467,7 @@ next:
         } else {
             n = 20;
         }
-        
+
         //初始化open_files链表
         if (ngx_list_init(&cycle->open_files, pool, n, sizeof(ngx_open_file_t))
                     != NGX_OK)
@@ -1506,7 +1512,7 @@ next:
         //初始化resuable_connections_queue队列
         ngx_queue_init(&cycle->reusable_connections_queue);
 
-        
+
         //从pool为conf_ctx分配空间
         cycle->conf_ctx = ngx_pcalloc(pool, ngx_max_module * sizeof(void *));
         if (cycle->conf_ctx == NULL) {
@@ -1535,7 +1541,7 @@ next:
 
         ngx_strlow(cycle->hostname.data, (u_char *) hostname, cycle->hostname.len);
 
-    
+
         //调用core模块的create_conf()
         for (i = 0; ngx_modules[i]; i++) {
             if (ngx_modules[i]->type != NGX_CORE_MODULE) {
@@ -1583,7 +1589,7 @@ next:
 #if 0
         log->log_level = NGX_LOG_DEBUG_ALL;
 #endif
-        
+
         //配置文件解析
         if (ngx_conf_param(&conf) != NGX_CONF_OK) {
             environ = senv;
@@ -2173,7 +2179,7 @@ failed:   //容错
 
         return NULL;
     }
-    
+
     if (ngx_test_config) {
         if (!ngx_quiet_mode) {
             ngx_log_stderr(0, "configuration file %s test is successful",
@@ -2183,10 +2189,63 @@ failed:   //容错
         return 0;
     }
 
-    if (ngx_signal) {
+    //若有信号，则进入ngx_signal_process()处理
+    if (ngx_signal) {//热加载，再不关闭服务同时加载新配置信息
         return ngx_signal_process(cycle, ngx_signal);
     }
+    //nginx有个pid文件，里面记录了，当前正在运行的nginxmaster进程的pid，所以程序会通过这个文件得到进程的pid，和信号字符串对应的signo，最后使用kill来完成信号的发送
 
+    ngx_int_t ngx_signal_process(ngx_cycle_t *cycle, char *sig)
+    {
+        ssize_t           n;
+        ngx_int_t         pid;
+        ngx_file_t        file;
+        ngx_core_conf_t  *ccf;
+        u_char            buf[NGX_INT64_LEN + 2];
+
+        ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "signal process started");
+
+        ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
+
+        ngx_memzero(&file, sizeof(ngx_file_t));
+
+        file.name = ccf->pid;
+        file.log = cycle->log;
+
+        file.fd = ngx_open_file(file.name.data, NGX_FILE_RDONLY,
+                    NGX_FILE_OPEN, NGX_FILE_DEFAULT_ACCESS);
+
+        if (file.fd == NGX_INVALID_FILE) {
+            ngx_log_error(NGX_LOG_ERR, cycle->log, ngx_errno,
+                        ngx_open_file_n " \"%s\" failed", file.name.data);
+            return 1;
+        }
+
+        n = ngx_read_file(&file, buf, NGX_INT64_LEN + 2, 0);
+
+        if (ngx_close_file(file.fd) == NGX_FILE_ERROR) {
+            ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
+                        ngx_close_file_n " \"%s\" failed", file.name.data);
+        }
+
+        if (n == NGX_ERROR) {
+            return 1;
+        }
+
+        while (n-- && (buf[n] == CR || buf[n] == LF)) { /* void */ }
+
+        pid = ngx_atoi(buf, ++n);
+
+        if (pid == NGX_ERROR) {
+            ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                        "invalid PID number \"%*s\" in \"%s\"",
+                        n, buf, file.name.data);
+            return 1;
+        }
+
+        return ngx_os_signal_process(cycle, sig, pid);
+
+    }
     ngx_os_status(cycle->log);
 
     ngx_cycle = cycle;
@@ -2198,11 +2257,41 @@ failed:   //容错
     }
 
 #if !(NGX_WIN32)
-
+    //调用ngx_init_signals()初始化信号；主要完成信号处理程序的注册
     if (ngx_init_signals(cycle->log) != NGX_OK) {
         return 1;
     }
 
+    ngx_int_t ngx_init_signals(ngx_log_t *log)
+    {
+        ngx_signal_t      *sig;
+        struct sigaction   sa;
+        
+        //signals数组
+        for (sig = signals; sig->signo != 0; sig++) {
+            ngx_memzero(&sa, sizeof(struct sigaction));
+            sa.sa_handler = sig->handler;
+            sigemptyset(&sa.sa_mask);
+            if (sigaction(sig->signo, &sa, NULL) == -1) {
+#if (NGX_VALGRIND)
+                ngx_log_error(NGX_LOG_ALERT, log, ngx_errno,
+                            "sigaction(%s) failed, ignored", sig->signame);
+#else
+                ngx_log_error(NGX_LOG_EMERG, log, ngx_errno,
+                            "sigaction(%s) failed", sig->signame);
+                return NGX_ERROR;
+#endif
+            }
+        }
+
+        return NGX_OK;
+    }
+
+    //若无继承sockets，且设置了守护进程标识，则调用ngx_daemon()创建守护进程
+    //在daemon模式下，调用ngx_daemon以守护进程的方式运行。这里可以在./configure的时候加入参数—with-debug，并在nginx.conf中配置:
+    //master_process  off; # 简化调试 此指令不得用于生产环境
+    //daemon          off; # 简化调试 此指令可以用到生产环境
+    //可以取消守护进程模式以及master线程模型。
     if (!ngx_inherited && ccf->daemon) {
         if (ngx_daemon(cycle->log) != NGX_OK) {
             return 1;
@@ -2217,6 +2306,8 @@ failed:   //容错
 
 #endif
 
+    //调用ngx_create_pidfile创建pid文件，把master进程的pid保存在里面
+    //调用ngx_create_pidfile()创建进程记录文件；(非NGX_PROCESS_MASTER=1进程，不创建该文件)
     if (ngx_create_pidfile(&ccf->pid, cycle->log) != NGX_OK) {
         return 1;
     }
@@ -2234,11 +2325,14 @@ failed:   //容错
 
     ngx_use_stderr = 0;
 
+    //通过ngx_start_worker_processes开启新进程，而之前的进程则通过ngx_signal_worker_processes，来发送信号来“优雅”的关闭，所谓优雅的关闭，是指当前真正处理请求的进程会等到处理完之后再退出，同时当前的进程停止listen，不再accept新的请求了
+    //若为NGX_PROCESS_SINGLE=1模式，则调用ngx_single_process_cycle()进入进程循环
     if (ngx_process == NGX_PROCESS_SINGLE) {
-        ngx_single_process_cycle(cycle);
+        ngx_single_process_cycle(cycle);//单进程模式
 
+        //否则为master-worker模式，调用ngx_master_process_cycle()进入进程循环
     } else {
-        ngx_master_process_cycle(cycle);
+        ngx_master_process_cycle(cycle);//多进程模式
     }
 
     return 0;
