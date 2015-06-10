@@ -100,6 +100,7 @@ struct ngx_queue_s {
     (h)->prev->next = h;
 
 
+//获得数据时，使用ngx_queue_data()宏
 #define ngx_queue_data(q, type, link)                                         \
     (type *) ((u_char *) q - offsetof(type, link))
 
