@@ -30,7 +30,7 @@ struct ngx_shm_zone_s {
     void                     *data;
     ngx_shm_t                 shm;
     ngx_shm_zone_init_pt      init;
-    void                     *tag;
+    void                     *tag; //冲突标识，指向当前模块的ngx_module_t变量
 };
 
 

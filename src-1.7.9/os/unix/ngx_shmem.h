@@ -16,7 +16,7 @@
 typedef struct {
     u_char      *addr;
     size_t       size;
-    ngx_str_t    name;
+    ngx_str_t    name; //共享内存的唯一标识
     ngx_log_t   *log;
     ngx_uint_t   exists;   /* unsigned  exists:1;  */
 } ngx_shm_t;

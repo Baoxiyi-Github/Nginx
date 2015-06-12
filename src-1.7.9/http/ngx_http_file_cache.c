@@ -1763,6 +1763,9 @@ ngx_http_file_cache_delete(ngx_http_file_cache_t *cache, ngx_queue_t *q,
 }
 
 
+//该函数主要做二件事
+//  1.删除已经过期的缓存文件
+//  2.检查缓存文件总大小是否超限，如果超限则进行强制删除.
 static time_t
 ngx_http_file_cache_manager(void *data)
 {

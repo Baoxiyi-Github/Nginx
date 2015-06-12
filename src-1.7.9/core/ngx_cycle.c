@@ -1170,7 +1170,7 @@ ngx_reopen_files(ngx_cycle_t *cycle, ngx_uid_t user)
     (void) ngx_log_redirect_stderr(cycle);
 }
 
-
+//Nginx使用的所有共享内存都是以list链表的形式组织在全局变量cf->cycle->shared_memory下，在创建的共享内存之前会先对该链表进行遍历查找以及冲突检测，对于已经存在且不存在冲突的共享内存可直接返回引用.
 ngx_shm_zone_t *
 ngx_shared_memory_add(ngx_conf_t *cf, ngx_str_t *name, size_t size, void *tag)
 {
@@ -1181,6 +1181,7 @@ ngx_shared_memory_add(ngx_conf_t *cf, ngx_str_t *name, size_t size, void *tag)
     part = &cf->cycle->shared_memory.part;
     shm_zone = part->elts;
 
+    
     for (i = 0; /* void */ ; i++) {
 
         if (i >= part->nelts) {

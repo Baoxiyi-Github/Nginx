@@ -400,10 +400,14 @@ ngx_start_cache_manager_processes(ngx_cycle_t *cycle, ngx_uint_t respawn)
     path = ngx_cycle->paths.elts;
     for (i = 0; i < ngx_cycle->paths.nelts; i++) {
 
+        //管理进程
+        //
+        //管理进程的任务就始清理超时缓存文件，限制缓存文件总大小，这个过程反反复复，直到Nginx整个进程退出为止
         if (path[i]->manager) {
             manager = 1;
         }
-
+        
+        //加载进程
         if (path[i]->loader) {
             loader = 1;
         }
@@ -443,6 +447,7 @@ ngx_start_cache_manager_processes(ngx_cycle_t *cycle, ngx_uint_t respawn)
 }
 
 
+//父进程fork()生成一个新子进程后，就会立即调用ngx_pass_open_channel函数把这个子进程的相关信息告知其前面已生成的子进程
 static void
 ngx_pass_open_channel(ngx_cycle_t *cycle, ngx_channel_t *ch)
 {
@@ -1038,7 +1043,7 @@ ngx_worker_process_init(ngx_cycle_t *cycle, ngx_int_t worker)
 #if 0
     ngx_last_process = 0;
 #endif
-
+    //把ngx_channel(也就是channel[1])加入到读事件监听集里，调用对应的回调ngx_channel_handler()
     if (ngx_add_channel_event(cycle, ngx_channel, NGX_READ_EVENT,
                               ngx_channel_handler)
         == NGX_ERROR)
@@ -1381,6 +1386,7 @@ ngx_cache_manager_process_cycle(ngx_cycle_t *cycle, void *data)
 }
 
 
+//调用每一个磁盘缓存管理对象的manager()函数，然后重新设置事件对象的下一次超时时刻后返回
 static void
 ngx_cache_manager_process_handler(ngx_event_t *ev)
 {
@@ -1393,7 +1399,7 @@ ngx_cache_manager_process_handler(ngx_event_t *ev)
     path = ngx_cycle->paths.elts;
     for (i = 0; i < ngx_cycle->paths.nelts; i++) {
 
-        if (path[i]->manager) {
+        if (path[i]->manager) {//manager()函数为ngx_http_file_cache_manager()函数， 是Nginx在调用函数ngx)http_file_cache_set_slot()解析配置指令proxy_cache_path时设置的回调指。
             n = path[i]->manager(path[i]->data);
 
             next = (n <= next) ? n : next;
