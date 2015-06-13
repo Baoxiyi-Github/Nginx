@@ -75,12 +75,13 @@
 #define NGX_MAX_CONF_ERRSTR  1024
 
 
+//对所有的Nginx配置项进行了统一的描述
 struct ngx_command_s {
-    ngx_str_t             name;
-    ngx_uint_t            type;
-    char               *(*set)(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+    ngx_str_t             name; //指定与其对应的配置项目的名称
+    ngx_uint_t            type; 
+    char               *(*set)(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);//指向配置指令处理回调函数
     ngx_uint_t            conf;
-    ngx_uint_t            offset;
+    ngx_uint_t            offset; //指向转化后控制值的存放位置
     void                 *post;
 };
 
@@ -133,7 +134,7 @@ struct ngx_module_s {
     uintptr_t             spare_hook5;
     uintptr_t             spare_hook6;
     uintptr_t             spare_hook7;
-};
+}
 
 
 typedef struct {  //定义core模块上下文类型
