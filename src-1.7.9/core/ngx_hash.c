@@ -244,7 +244,8 @@ ngx_hash_find_combined(ngx_hash_combined_t *hash, ngx_uint_t key, u_char *name,
     return NULL;
 }
 
-
+//sizeof(void *) :结束哨兵的所需内存空间
+//hinit->bucket_size记录了一个bucket的内存空间大小
 #define NGX_HASH_ELT_SIZE(name)                                               \
     (sizeof(void *) + ngx_align((name)->key.len + 2, sizeof(void *)))
 
@@ -258,6 +259,7 @@ ngx_hash_init(ngx_hash_init_t *hinit, ngx_hash_key_t *names, ngx_uint_t nelts)
     ngx_hash_elt_t  *elt, **buckets;
 
     for (n = 0; n < nelts; n++) {
+        //确保一个bucket至少可以一个实际的元素以及结束哨兵。
         if (hinit->bucket_size < NGX_HASH_ELT_SIZE(&names[n]) + sizeof(void *))
         {
             ngx_log_error(NGX_LOG_EMERG, hinit->pool->log, 0,
@@ -272,9 +274,12 @@ ngx_hash_init(ngx_hash_init_t *hinit, ngx_hash_key_t *names, ngx_uint_t nelts)
     if (test == NULL) {
         return NGX_ERROR;
     }
-
+    //计算一个bucket除去结束哨兵所占空间后的实际可用空间大小
     bucket_size = hinit->bucket_size - sizeof(void *);
 
+    //2*sizeof(void *) 一个实际元素所需的内存空间的最小值
+    //bucket_size * ( 2*sizeof(void *)):一个bucket可以存储的最大实际元素个数
+    //总实际元素个数netls除以这个值也就是最少所需要的bucket个数
     start = nelts / (bucket_size / (2 * sizeof(void *)));
     start = start ? start : 1;
 

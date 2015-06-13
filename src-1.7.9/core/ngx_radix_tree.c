@@ -12,6 +12,7 @@
 static ngx_radix_node_t *ngx_radix_alloc(ngx_radix_tree_t *tree);
 
 
+//Nginx提供的这个基树仅被geo模块使用，这个模块使用基树来处理IP地址的匹配查找
 ngx_radix_tree_t *
 ngx_radix_tree_create(ngx_pool_t *pool, ngx_int_t preallocate)
 {
@@ -60,6 +61,10 @@ ngx_radix_tree_create(ngx_pool_t *pool, ngx_int_t preallocate)
      */
 
     if (preallocate == -1) {
+        //一个节点的大小: sizeof(ngx_radix_node_t) = 16B
+        //一页内存大小 ： ngx_pagesize = 4KB  
+        //x86, 32bit arch: 4KB/16B = 256
+        //数的深度值preallocate(总节点数) = 2^(树深度+1) - 1， 因为这里预创建的是一颗满二叉树 
         switch (ngx_pagesize / sizeof(ngx_radix_node_t)) {
 
         /* amd64 */

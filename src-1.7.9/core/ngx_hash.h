@@ -27,7 +27,7 @@ typedef struct {
  *存储空间就足够了。这也从一定程度上节省了内存的使用。
  */
 typedef struct {
-    ngx_hash_elt_t  **buckets;
+    ngx_hash_elt_t  **buckets;//指向Hash节点所对应的存储空间，实现用得是二级指针
     ngx_uint_t        size;
 } ngx_hash_t;
 
