@@ -117,15 +117,22 @@ struct ngx_module_s {
 
 
     //以下未模块回调函数，回调时机可根据函数名看那书
+    //
+    //从未被调用，设为NULL
     ngx_int_t           (*init_master)(ngx_log_t *log);
 
+    //启动worker子进程前调用
     ngx_int_t           (*init_module)(ngx_cycle_t *cycle);
 
+    //启动worker子进程后调用
     ngx_int_t           (*init_process)(ngx_cycle_t *cycle);
+    //从未被调用，设为NULL
     ngx_int_t           (*init_thread)(ngx_cycle_t *cycle);
+    //从未被调用，设为NULL
     void                (*exit_thread)(ngx_cycle_t *cycle);
+    //worker子进程推出前调用
     void                (*exit_process)(ngx_cycle_t *cycle);
-
+    //master进程退出前调用
     void                (*exit_master)(ngx_cycle_t *cycle);
 
     uintptr_t             spare_hook0;
