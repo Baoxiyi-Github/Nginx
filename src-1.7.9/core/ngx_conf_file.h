@@ -101,20 +101,22 @@ struct ngx_open_file_s {
 #define NGX_MODULE_V1_PADDING  0, 0, 0, 0, 0, 0, 0, 0
 
 struct ngx_module_s {
-    ngx_uint_t            ctx_index;
-    ngx_uint_t            index;
+    ngx_uint_t            ctx_index;    //当前模块在同类模块中的序号
+    ngx_uint_t            index;        //当前模块在所有模块中的序号
 
     ngx_uint_t            spare0;
     ngx_uint_t            spare1;
     ngx_uint_t            spare2;
     ngx_uint_t            spare3;
 
-    ngx_uint_t            version;
+    ngx_uint_t            version;      //当前模块版本号
 
-    void                 *ctx;
-    ngx_command_t        *commands;
-    ngx_uint_t            type;
+    void                 *ctx;          //指向当前模块特有的数据
+    ngx_command_t        *commands;     //指向当前模块配置项解析数组
+    ngx_uint_t            type;         //模块类型
 
+
+    //以下未模块回调函数，回调时机可根据函数名看那书
     ngx_int_t           (*init_master)(ngx_log_t *log);
 
     ngx_int_t           (*init_module)(ngx_cycle_t *cycle);
