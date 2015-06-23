@@ -193,20 +193,27 @@ struct ngx_event_aio_s {
 
 
 typedef struct {
+    //将某描述符的某个事件（可读/可写）添加到多路复用监控里
     ngx_int_t  (*add)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
+    //将某描述符的某个事件（可读/可写）从多路复用监控里删除
     ngx_int_t  (*del)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
-
+    //启用对某个指定事件的监控
     ngx_int_t  (*enable)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
+    //禁用对某个指定事件的监控
     ngx_int_t  (*disable)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
-
+    //将指定连接关联的描述符加入到读路复用监控里
     ngx_int_t  (*add_conn)(ngx_connection_t *c);
+    //将指定连接关联的描述符从多路复用监控里删除
     ngx_int_t  (*del_conn)(ngx_connection_t *c, ngx_uint_t flags);
-
+    //监控的事件发生里变化，只有kqueue会用到这个接口
     ngx_int_t  (*process_changes)(ngx_cycle_t *cycle, ngx_uint_t nowait);
+    //阻塞等待事件发生，对发生的事件进行逐个处理
     ngx_int_t  (*process_events)(ngx_cycle_t *cycle, ngx_msec_t timer,
                    ngx_uint_t flags);
 
+    //初始化
     ngx_int_t  (*init)(ngx_cycle_t *cycle, ngx_msec_t timer);
+    //回收资源
     void       (*done)(ngx_cycle_t *cycle);
 } ngx_event_actions_t;
 

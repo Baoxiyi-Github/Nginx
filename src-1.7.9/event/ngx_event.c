@@ -51,7 +51,12 @@ ngx_atomic_t         *ngx_connection_counter = &connection_counter;
 
 ngx_atomic_t         *ngx_accept_mutex_ptr;
 ngx_shmtx_t           ngx_accept_mutex;
-ngx_uint_t            ngx_use_accept_mutex;
+
+
+//Nginx均衡措施的根本所在, 解决“惊群”问题
+//该变量的赋值语句在函数ngx_event_process_init()内，也就始每个工作进程开始时的初始化函数。 前后关系如下：
+//ngx_worker_process_cycle()-->ngx_worker_process_init()-->ngx_event_process_init()
+ngx_uint_t            ngx_use_accept_mutex;  
 ngx_uint_t            ngx_accept_events;
 ngx_uint_t            ngx_accept_mutex_held;
 ngx_msec_t            ngx_accept_mutex_delay;
@@ -584,7 +589,8 @@ ngx_event_process_init(ngx_cycle_t *cycle)
 
     ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
     ecf = ngx_event_get_conf(cycle->conf_ctx, ngx_event_core_module);
-
+    
+    //可以看到只有多进程模型下，并且工作进程数大于1、用户配置开启负载均衡的情况下才设置该变量为1，否则未0
     if (ccf->master && ccf->worker_processes > 1 && ecf->accept_mutex) {
         ngx_use_accept_mutex = 1;
         ngx_accept_mutex_held = 0;
@@ -616,7 +622,8 @@ ngx_event_process_init(ngx_cycle_t *cycle)
         if (ngx_modules[m]->type != NGX_EVENT_MODULE) {
             continue;
         }
-
+        
+        //根据配置变量ecf->use记录的值，进而调用到对用的事件处理模块的初始化函数。如epoll模块的ngx_epoll_init()
         if (ngx_modules[m]->ctx_index != ecf->use) {
             continue;
         }
@@ -782,6 +789,9 @@ ngx_event_process_init(ngx_cycle_t *cycle)
 
             rev->handler = ngx_event_acceptex;
 
+            //一旦变量ngx_use_accept_mutex值为1，也就开启里Nginx负载均衡策略，
+            //在此时的每个工作进程的初始化函数ngx_event_process_init()内，所有监听
+            //套接口都不会被加入到其事件监控机制里
             if (ngx_use_accept_mutex) {
                 continue;
             }
