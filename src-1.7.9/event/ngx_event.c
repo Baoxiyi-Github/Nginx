@@ -658,7 +658,8 @@ ngx_event_process_init(ngx_cycle_t *cycle)
         itv.it_interval.tv_usec = (ngx_timer_resolution % 1000) * 1000;
         itv.it_value.tv_sec = ngx_timer_resolution / 1000;
         itv.it_value.tv_usec = (ngx_timer_resolution % 1000 ) * 1000;
-
+        
+        //setitimer()函数设置的定时器会自动循环，每隔ngx_timer_resolution毫秒，工作进程就将收到以个定时事件，将其从事件处理机制的阻塞等待里唤醒出来.
         if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
             ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
                           "setitimer() failed");

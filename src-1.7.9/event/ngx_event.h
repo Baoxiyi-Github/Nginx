@@ -64,8 +64,8 @@ struct ngx_event_s {
     unsigned         eof:1;
     unsigned         error:1;
 
-    unsigned         timedout:1;
-    unsigned         timer_set:1;
+    unsigned         timedout:1;    //用于标识当前事件是否已经超时
+    unsigned         timer_set:1;   //用于标识当前事件是否已经是否加入到红黑树管理，需要对其是否超时做监控
 
     unsigned         delayed:1;
 
@@ -125,6 +125,7 @@ struct ngx_event_s {
 
     ngx_log_t       *log;
 
+    //红黑树节点类型变量，红黑树就算通过该字段来组织所有的超时事件对象
     ngx_rbtree_node_t   timer;
 
     /* the posted queue */

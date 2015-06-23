@@ -10,8 +10,9 @@
 #include <ngx_event.h>
 
 
-ngx_rbtree_t              ngx_event_timer_rbtree;
-static ngx_rbtree_node_t  ngx_event_timer_sentinel;
+//Nginx设置了二个全局变量以便在程序的任何地方都能快速的访问到这颗红黑树
+ngx_rbtree_t              ngx_event_timer_rbtree;//封装了整颗红黑树的结构
+static ngx_rbtree_node_t  ngx_event_timer_sentinel;//红黑树的节点类型变量，在红黑树的操作中被当作哨兵使用
 
 /*
  * the event timer rbtree may contain the duplicate keys, however,
@@ -19,6 +20,7 @@ static ngx_rbtree_node_t  ngx_event_timer_sentinel;
  * a minimum timer value only
  */
 
+//红黑树的初始化，是在ngx_event_process_init()函数内被调用，所以每个工作进程都会在自身的初始化时建立这颗红黑树
 ngx_int_t
 ngx_event_timer_init(ngx_log_t *log)
 {

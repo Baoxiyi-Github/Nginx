@@ -360,6 +360,7 @@ ngx_http_init_connection(ngx_connection_t *c)
         return;
     }
 
+    //将rev事件（触发该事件即表示客户端传来请求头等信息）对象加入到红黑树内进行超时管理，同时给它指定的超时时限为c->listening->post_accept_timeout(该变量的值可由用户通过client_header_timerout指令进行配置，默认情况下是60000毫秒).
     ngx_add_timer(rev, c->listening->post_accept_timeout);
     ngx_reusable_connection(c, 1);
 
