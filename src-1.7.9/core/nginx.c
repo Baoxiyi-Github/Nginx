@@ -925,6 +925,7 @@ ngx_process_options(ngx_cycle_t *cycle)
 }
 
 
+//主要做了一件事，申请内存空间、初始内存空间并返回内存空间的指针引用
 static void *
 ngx_core_module_create_conf(ngx_cycle_t *cycle)
 {
@@ -945,6 +946,7 @@ ngx_core_module_create_conf(ngx_cycle_t *cycle)
      *     ccf->cpu_affinity = NULL;
      */
 
+    //注意NGX_CONF_UNSET这样的初始赋值，这很重要，根据名称就能猜出这些值可用来判断用户是否有在配置文件里对这些配置项做过设置，因为这些值都是特殊值-1，所有没有做过设置，就会给这些字段设置对应的默认值
     ccf->daemon = NGX_CONF_UNSET;
     ccf->master = NGX_CONF_UNSET;
     ccf->timer_resolution = NGX_CONF_UNSET_MSEC;

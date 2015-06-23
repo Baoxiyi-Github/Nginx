@@ -180,7 +180,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
 
     ngx_queue_init(&cycle->reusable_connections_queue);
 
-
+    //申请存储模块配置信息的内存空间，是一个指针数组，数组元素个数为ngx_max_module
     cycle->conf_ctx = ngx_pcalloc(pool, ngx_max_module * sizeof(void *));
     if (cycle->conf_ctx == NULL) {
         ngx_destroy_pool(pool);
@@ -215,6 +215,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
 
         module = ngx_modules[i]->ctx;
 
+        //创建实际的配置信息存储空间
         if (module->create_conf) {
             rv = module->create_conf(cycle);
             if (rv == NULL) {
@@ -244,7 +245,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     }
 
 
-    conf.ctx = cycle->conf_ctx;
+    conf.ctx = cycle->conf_ctx;//是唯一能准确找到配置存储空间的指针
     conf.cycle = cycle;
     conf.pool = pool;
     conf.log = log;
@@ -279,6 +280,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
 
         module = ngx_modules[i]->ctx;
 
+        //设置默认是的处理在模块的回调函数init_conf()内，在配置文件解析完后就会调用该函数
         if (module->init_conf) {
             if (module->init_conf(cycle, cycle->conf_ctx[ngx_modules[i]->index])
                 == NGX_CONF_ERROR)

@@ -97,6 +97,13 @@ ngx_conf_param(ngx_conf_t *cf)
 }
 
 
+
+//执行配置文件解析的关键函数
+//间接递归函数
+//总体来看分成三个步骤：
+//  1.判断当前解析状态
+//  2.读取配置标记token
+//  3.当读取了合适数量的标记token后对其进行实际的处理 ，也就是将配置值转换为Nginx内对于控制变量的值。
 char *
 ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
 {
