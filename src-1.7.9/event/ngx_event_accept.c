@@ -14,7 +14,7 @@ static ngx_int_t ngx_enable_accept_events(ngx_cycle_t *cycle);
 static ngx_int_t ngx_disable_accept_events(ngx_cycle_t *cycle);
 static void ngx_close_accepted_connection(ngx_connection_t *c);
 
-
+//处理新连接事件的回调函数
 void
 ngx_event_accept(ngx_event_t *ev)
 {
@@ -138,9 +138,11 @@ ngx_event_accept(ngx_event_t *ev)
         (void) ngx_atomic_fetch_add(ngx_stat_accepted, 1);
 #endif
 
+        //设置负载均衡阀值ngx_accept_disabled, 进程允许的总连接数的1/8减去空闲连接数
         ngx_accept_disabled = ngx_cycle->connection_n / 8
                               - ngx_cycle->free_connection_n;
 
+        //由连接池获取一个ngx_connection_t连接对象
         c = ngx_get_connection(s, ev->log);
 
         if (c == NULL) {
@@ -177,7 +179,7 @@ ngx_event_accept(ngx_event_t *ev)
         }
 
         /* set a blocking mode for aio and non-blocking mode for others */
-
+        //设置套接字的属性
         if (ngx_inherited_nonblocking) {
             if (ngx_event_flags & NGX_USE_AIO_EVENT) {
                 if (ngx_blocking(s) == -1) {

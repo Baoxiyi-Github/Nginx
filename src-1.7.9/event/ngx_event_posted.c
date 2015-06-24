@@ -14,6 +14,7 @@ ngx_queue_t  ngx_posted_accept_events;
 ngx_queue_t  ngx_posted_events;
 
 
+//调用posted事件队列中所有事件的handler回调方法，每个事件调用完handler方法后，就会从posted事件队列中删除
 void
 ngx_event_process_posted(ngx_cycle_t *cycle, ngx_queue_t *posted)
 {
