@@ -295,18 +295,21 @@ struct ngx_http_upstream_s {
 
     ngx_event_pipe_t                *pipe;
 
+    //发给上游服务器的请求，由create_request()完成 
     ngx_chain_t                     *request_bufs;
 
     ngx_output_chain_ctx_t           output;
     ngx_chain_writer_ctx_t           writer;
-
+    
+    //超时时间等限制性参数
     ngx_http_upstream_conf_t        *conf;
 #if (NGX_HTTP_CACHE)
     ngx_array_t                     *caches;
 #endif
 
     ngx_http_upstream_headers_in_t   headers_in;
-
+    
+    //用于直接指定的上游服务器地址
     ngx_http_upstream_resolved_t    *resolved;
 
     ngx_buf_t                        from_client;
@@ -318,19 +321,26 @@ struct ngx_http_upstream_s {
     ngx_chain_t                     *busy_bufs;
     ngx_chain_t                     *free_bufs;
 
+    //处理上游包体
     ngx_int_t                      (*input_filter_init)(void *data);
+    //处理上游包体
     ngx_int_t                      (*input_filter)(void *data, ssize_t bytes);
     void                            *input_filter_ctx;
 
 #if (NGX_HTTP_CACHE)
     ngx_int_t                      (*create_key)(ngx_http_request_t *r);
 #endif
+    //构造向上游服务器发送的请求内容。调用mytest时，只调用一次
     ngx_int_t                      (*create_request)(ngx_http_request_t *r);
+    //第一次向上游服务器建立连接失败时调用
     ngx_int_t                      (*reinit_request)(ngx_http_request_t *r);
+    //收到上游服务器后对包头进行处理的方法
     ngx_int_t                      (*process_header)(ngx_http_request_t *r);
     void                           (*abort_request)(ngx_http_request_t *r);
+    //销毁upstream请求时调用
     void                           (*finalize_request)(ngx_http_request_t *r,
                                          ngx_int_t rc);
+    //主要用于反向代理
     ngx_int_t                      (*rewrite_redirect)(ngx_http_request_t *r,
                                          ngx_table_elt_t *h, size_t prefix);
     ngx_int_t                      (*rewrite_cookie)(ngx_http_request_t *r,
