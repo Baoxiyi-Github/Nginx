@@ -116,29 +116,51 @@ typedef enum {
 
 
 struct ngx_connection_s {
-    void               *data;
+    //连接未使用时，data成员用于充当连接池中的空闲连接链表中的next指针。
+    //当连接被使用时，data的一样有使用它的Nginx模块而定，如在HTTP框架中，data指向ngx_http_request_t请求
+    void               *data;   
+
+    //连接对应的读事件
     ngx_event_t        *read;
+    //连接对应的写事件
     ngx_event_t        *write;
 
+    //套接字句柄
     ngx_socket_t        fd;
 
+    //直接接受网络字节流的方法
     ngx_recv_pt         recv;
+    //直接发送网络字节流的方法
     ngx_send_pt         send;
+
+    //以ngx_chain_t链表为参数来接受网络字符流的方法
     ngx_recv_chain_pt   recv_chain;
+
+    //以ngx_chain_t链表为参数来发送网络字符流的方法
     ngx_send_chain_pt   send_chain;
 
+    //这个连接对应的ngx_listening_t监听对象，此连接有listening监听端口的事件建立
     ngx_listening_t    *listening;
 
+    //这个连接已发送出去的字节数
     off_t               sent;
-
+    
+    //可以记录日志的ngx_log_t对象
     ngx_log_t          *log;
 
+    //内存池。一般在accept一个新连接时，会创建一个内存池，而在这个连接结束时会销毁内存池。
+    //注意，这里所说的连接是指成功连接的TCP连接，所有的ngx_connection_t结构体都是预分配的。
+    //这个内存池的大小将由上面的istening监听对象中的pool_size成员决定
     ngx_pool_t         *pool;
-
+    
+    //连接客户端的socketaddr结构体
     struct sockaddr    *sockaddr;
+    //socketaddr结构体的长度
     socklen_t           socklen;
+    //连接客户端字符串形式的IP地址
     ngx_str_t           addr_text;
 
+    //
     ngx_str_t           proxy_protocol_addr;
 
 #if (NGX_SSL)
@@ -154,6 +176,7 @@ struct ngx_connection_s {
 
     ngx_atomic_uint_t   number;
 
+    //处理请求的次数
     ngx_uint_t          requests;
 
     unsigned            buffered:8;
