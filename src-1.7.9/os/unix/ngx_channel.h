@@ -15,10 +15,10 @@
 
 
 typedef struct {
-     ngx_uint_t  command;
-     ngx_pid_t   pid;
-     ngx_int_t   slot;
-     ngx_fd_t    fd;
+     ngx_uint_t  command; //传递的TCP消息中的命令
+     ngx_pid_t   pid;     //进程ID，一般是发送命令方的进程ID
+     ngx_int_t   slot;    //表示发送命令方在ngx_processes进程数组中的序号   
+     ngx_fd_t    fd;      //通信的套接字句柄   
 } ngx_channel_t;
 
 

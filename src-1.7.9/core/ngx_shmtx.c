@@ -29,7 +29,7 @@ ngx_shmtx_create(ngx_shmtx_t *mtx, ngx_shmtx_sh_t *addr, u_char *name)
 #if (NGX_HAVE_POSIX_SEM)
 
     mtx->wait = &addr->wait;
-
+    //信号量mtx->sem初始化为0，用于进程间通信
     if (sem_init(&mtx->sem, 1, 0) == -1) {
         ngx_log_error(NGX_LOG_ALERT, ngx_cycle->log, ngx_errno,
                       "sem_init() failed");
@@ -106,7 +106,8 @@ ngx_shmtx_lock(ngx_shmtx_t *mtx)
 
             ngx_log_debug1(NGX_LOG_DEBUG_CORE, ngx_cycle->log, 0,
                            "shmtx wait %uA", *mtx->wait);
-
+        
+            //如果没有拿到锁，这时Nginx进程将会睡眠，直到其他进程释放里锁
             while (sem_wait(&mtx->sem) == -1) {
                 ngx_err_t  err;
 
@@ -185,7 +186,7 @@ ngx_shmtx_wakeup(ngx_shmtx_t *mtx)
 
     ngx_log_debug1(NGX_LOG_DEBUG_CORE, ngx_cycle->log, 0,
                    "shmtx wake %uA", wait);
-
+    //释放信号量锁是不会使进程睡眠的
     if (sem_post(&mtx->sem) == -1) {
         ngx_log_error(NGX_LOG_ALERT, ngx_cycle->log, ngx_errno,
                       "sem_post() failed while wake shmtx");

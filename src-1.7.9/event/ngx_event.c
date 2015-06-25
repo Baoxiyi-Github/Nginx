@@ -64,17 +64,23 @@ ngx_int_t             ngx_accept_disabled;
 
 
 #if (NGX_STAT_STUB)
-
+//已经建立成功过的TCP连接
 ngx_atomic_t   ngx_stat_accepted0;
 ngx_atomic_t  *ngx_stat_accepted = &ngx_stat_accepted0;
+//连接建立成功且获取到ngx_connection_t结构体后，已经分配过内存池，并且在表示初始化里读/写事件后的连接数
 ngx_atomic_t   ngx_stat_handled0;
 ngx_atomic_t  *ngx_stat_handled = &ngx_stat_handled0;
+//已经由HTTP模块处理过的连接数
 ngx_atomic_t   ngx_stat_requests0;
 ngx_atomic_t  *ngx_stat_requests = &ngx_stat_requests0;
+//已经从ngx_cycle_t核心结构体的free_connections连接池中获取到ngx_connection_t对象的活跃连接数
 ngx_atomic_t   ngx_stat_active0;
 ngx_atomic_t  *ngx_stat_active = &ngx_stat_active0;
+
+//正在接受TCP流的连接数
 ngx_atomic_t   ngx_stat_reading0;
 ngx_atomic_t  *ngx_stat_reading = &ngx_stat_reading0;
+//正在发送TCP流的连接数
 ngx_atomic_t   ngx_stat_writing0;
 ngx_atomic_t  *ngx_stat_writing = &ngx_stat_writing0;
 ngx_atomic_t   ngx_stat_waiting0;

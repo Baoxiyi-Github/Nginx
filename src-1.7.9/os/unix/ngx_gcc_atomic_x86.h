@@ -35,17 +35,19 @@
  */
 
 static ngx_inline ngx_atomic_uint_t
-ngx_atomic_cmp_set(ngx_atomic_t *lock, ngx_atomic_uint_t old,
-    ngx_atomic_uint_t set)
+//                       %1                        %2                    %3    参数的传参顺序始从左到右
+ngx_atomic_cmp_set(ngx_atomic_t *lock, ngx_atomic_uint_t old,ngx_atomic_uint_t set)
 {
     u_char  res;
 
     __asm__ volatile (
-
-         NGX_SMP_LOCK
+        //多核架构下首先锁住总线
+         NGX_SMP_LOCK//锁住总线，防止多核的并发执行
     "    cmpxchgl  %3, %1;   "
     "    sete      %0;       "
-
+    //m表示后面的变量是在内存中，变量直接通过内存处理
+    //a表示把后面的变量写入eax寄存器
+    //r表示后面的变量写入到通用寄存器
     : "=a" (res) : "m" (*lock), "a" (old), "r" (set) : "cc", "memory");
 
     return res;

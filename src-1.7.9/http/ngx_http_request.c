@@ -1750,7 +1750,7 @@ ngx_http_process_multi_header_lines(ngx_http_request_t *r, ngx_table_elt_t *h,
 
     *ph = h;
     return NGX_OK;
-}
+%}
 
 
 ngx_int_t
@@ -1889,9 +1889,9 @@ ngx_http_process_request(ngx_http_request_t *r)
     }
 
 #if (NGX_STAT_STUB)
-    (void) ngx_atomic_fetch_add(ngx_stat_reading, -1);
+    (void) ngx_atomic_fetch_add(ngx_stat_reading, -1); //ngx_stat_reading统计变量减1
     r->stat_reading = 0;
-    (void) ngx_atomic_fetch_add(ngx_stat_writing, 1);
+    (void) ngx_atomic_fetch_add(ngx_stat_writing, 1); //ngx_stat_writing统计变量加1
     r->stat_writing = 1;
 #endif
 

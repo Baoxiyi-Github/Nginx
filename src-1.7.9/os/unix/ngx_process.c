@@ -37,6 +37,7 @@ ngx_int_t        ngx_last_process;
 ngx_process_t    ngx_processes[NGX_MAX_PROCESSES];
 
 //signals数组
+//用来定义进程将会处理的所有信号
 ngx_signal_t  signals[] = {
     { ngx_signal_value(NGX_RECONFIGURE_SIGNAL),
       "SIG" ngx_value(NGX_RECONFIGURE_SIGNAL),
@@ -129,6 +130,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
         /* Solaris 9 still has no AF_LOCAL */
 
         //建立socketpair
+        //ngx_processes[s].channel正是用于父，子进程间通信的套接字对
         if (socketpair(AF_UNIX, SOCK_STREAM, 0, ngx_processes[s].channel) == -1)
         {
             ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
@@ -141,7 +143,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
                        ngx_processes[s].channel[0],
                        ngx_processes[s].channel[1]);
 
-        //设置非阻塞模式
+        //把套接字对都设置为非阻塞模式
         if (ngx_nonblocking(ngx_processes[s].channel[0]) == -1) {
             ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
                           ngx_nonblocking_n " failed while spawning \"%s\"",
@@ -310,12 +312,18 @@ ngx_int_t
 ngx_init_signals(ngx_log_t *log)
 {
     ngx_signal_t      *sig;
+    //Linux内核使用的信号
     struct sigaction   sa;
 
+    //遍历signals数组，处理每一个ngx_signal_t类型的结构体
     for (sig = signals; sig->signo != 0; sig++) {
         ngx_memzero(&sa, sizeof(struct sigaction));
+        //设置信号的处理方法为handler方法
         sa.sa_handler = sig->handler;
+        //将sa中的位全部置为0
         sigemptyset(&sa.sa_mask);
+
+        //向Linux注册信号的回调方法
         if (sigaction(sig->signo, &sa, NULL) == -1) {
 #if (NGX_VALGRIND)
             ngx_log_error(NGX_LOG_ALERT, log, ngx_errno,
